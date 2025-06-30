@@ -8,39 +8,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 export type ActivityType = "running" | "climbing" | "hiking" | "snowboarding"
 export type Difficulty = "easy" | "moderate" | "hard" | "extreme"
 
-export interface Workout {
-  id: string
-  user_id: string
-  activity_type: ActivityType
-  title: string
-  description?: string
-  duration_minutes?: number
-  distance_miles?: number
-  difficulty?: Difficulty
-  location?: string
-  notes?: string
-  date: string
-  created_at: string
-  updated_at: string
-}
-
-export interface WorkoutGoal {
-  id: string
-  user_id: string
-  title: string
-  description?: string
-  activity_type?: ActivityType | "general"
-  target_value?: number
-  target_unit?: string
-  current_value: number
-  completed: boolean
-  target_date?: string
-  created_at: string
-  updated_at: string
-}
-
-// Existing database types
-export interface ExistingTodo {
+// Use existing todos table structure for both workouts and goals
+export interface Todo {
   id: string
   user_id: string
   title: string
@@ -56,6 +25,17 @@ export interface ExistingTodo {
   updated_at: string
 }
 
+// Workout is a todo with specific emoji/categorization
+export interface Workout extends Todo {
+  // We'll use emoji to categorize workout types
+  // We'll use description to store workout details
+}
+
+// Goal is a todo with goal-specific properties
+export interface WorkoutGoal extends Todo {
+  // Goals will have different emojis and can use due_date for target dates
+}
+
 export interface Profile {
   id: string
   email?: string
@@ -65,3 +45,9 @@ export interface Profile {
   created_at: string
   updated_at: string
 }
+
+// Workout activity emojis for categorization
+export const WORKOUT_EMOJIS = ["🏃", "🧗", "🥾", "🏂", "🚴", "🏊", "💪", "🧘"]
+
+// Goal emojis for categorization
+export const GOAL_EMOJIS = ["🎯", "🏆", "📚", "💡", "🌟", "🔥", "⚡", "🚀"]

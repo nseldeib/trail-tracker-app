@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase, type Workout, type WorkoutGoal } from "@/lib/supabase"
+import { supabase, type Todo, WORKOUT_EMOJIS, GOAL_EMOJIS } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Edit, Trash2, Mountain, LogOut, CheckCircle, Circle, Target, Calendar, TrendingUp } from "lucide-react"
+import { Plus, Edit, Trash2, Mountain, LogOut, CheckCircle, Circle, Target, Calendar, Star } from "lucide-react"
 import Auth from "@/components/auth"
 import WorkoutForm from "@/components/workout-form"
 import GoalForm from "@/components/todo-form"
@@ -15,12 +15,12 @@ import type { User } from "@supabase/supabase-js"
 export default function Home() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [workouts, setWorkouts] = useState<Workout[]>([])
-  const [goals, setGoals] = useState<WorkoutGoal[]>([])
+  const [workouts, setWorkouts] = useState<Todo[]>([])
+  const [goals, setGoals] = useState<Todo[]>([])
   const [showWorkoutForm, setShowWorkoutForm] = useState(false)
   const [showGoalForm, setShowGoalForm] = useState(false)
-  const [editingWorkout, setEditingWorkout] = useState<Workout | undefined>()
-  const [editingGoal, setEditingGoal] = useState<WorkoutGoal | undefined>()
+  const [editingWorkout, setEditingWorkout] = useState<Todo | undefined>()
+  const [editingGoal, setEditingGoal] = useState<Todo | undefined>()
 
   useEffect(() => {
     // Get initial session
@@ -47,7 +47,12 @@ export default function Home() {
   }, [user])
 
   const fetchWorkouts = async () => {
-    const { data, error } = await supabase.from("workouts").select("*").order("date", { ascending: false })
+    // Filter by workout emojis to identify workouts
+    const { data, error } = await supabase
+      .from("todos")
+      .select("*")
+      .in("emoji", WORKOUT_EMOJIS)
+      .order("due_date", { ascending: false })
 
     if (error) {
       console.error("Error fetching workouts:", error)
@@ -57,7 +62,12 @@ export default function Home() {
   }
 
   const fetchGoals = async () => {
-    const { data, error } = await supabase.from("workout_goals").select("*").order("created_at", { ascending: false })
+    // Filter by goal emojis to identify goals
+    const { data, error } = await supabase
+      .from("todos")
+      .select("*")
+      .in("emoji", GOAL_EMOJIS)
+      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("Error fetching goals:", error)
@@ -72,7 +82,7 @@ export default function Home() {
 
   const deleteWorkout = async (id: string) => {
     if (confirm("Are you sure you want to delete this workout?")) {
-      const { error } = await supabase.from("workouts").delete().eq("id", id)
+      const { error } = await supabase.from("todos").delete().eq("id", id)
 
       if (error) {
         console.error("Error deleting workout:", error)
@@ -84,7 +94,7 @@ export default function Home() {
 
   const deleteGoal = async (id: string) => {
     if (confirm("Are you sure you want to delete this goal?")) {
-      const { error } = await supabase.from("workout_goals").delete().eq("id", id)
+      const { error } = await supabase.from("todos").delete().eq("id", id)
 
       if (error) {
         console.error("Error deleting goal:", error)
@@ -94,38 +104,38 @@ export default function Home() {
     }
   }
 
-  const toggleGoalComplete = async (goal: WorkoutGoal) => {
-    const { error } = await supabase.from("workout_goals").update({ completed: !goal.completed }).eq("id", goal.id)
+  const toggleComplete = async (item: Todo, isWorkout = false) => {
+    const { error } = await supabase.from("todos").update({ completed: !item.completed }).eq("id", item.id)
 
     if (error) {
-      console.error("Error updating goal:", error)
+      console.error("Error updating item:", error)
     } else {
-      fetchGoals()
+      if (isWorkout) {
+        fetchWorkouts()
+      } else {
+        fetchGoals()
+      }
     }
   }
 
-  const updateGoalProgress = async (goal: WorkoutGoal, newValue: number) => {
-    const { error } = await supabase.from("workout_goals").update({ current_value: newValue }).eq("id", goal.id)
+  const toggleStar = async (item: Todo, isWorkout = false) => {
+    const { error } = await supabase.from("todos").update({ starred: !item.starred }).eq("id", item.id)
 
     if (error) {
-      console.error("Error updating goal progress:", error)
+      console.error("Error updating item:", error)
     } else {
-      fetchGoals()
+      if (isWorkout) {
+        fetchWorkouts()
+      } else {
+        fetchGoals()
+      }
     }
   }
 
-  const activityIcons = {
-    running: "🏃",
-    climbing: "🧗",
-    hiking: "🥾",
-    snowboarding: "🏂",
-  }
-
-  const difficultyColors = {
-    easy: "bg-green-100 text-green-800",
-    moderate: "bg-yellow-100 text-yellow-800",
-    hard: "bg-orange-100 text-orange-800",
-    extreme: "bg-red-100 text-red-800",
+  const priorityColors = {
+    low: "bg-blue-100 text-blue-800",
+    medium: "bg-yellow-100 text-yellow-800",
+    high: "bg-red-100 text-red-800",
   }
 
   if (loading) {
@@ -198,16 +208,35 @@ export default function Home() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-2xl">{activityIcons[workout.activity_type]}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleComplete(workout, true)}
+                          className="h-6 w-6"
+                        >
+                          {workout.completed ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-slate-400" />
+                          )}
+                        </Button>
+                        <span className="text-2xl">{workout.emoji || "🏃"}</span>
                         <div>
-                          <CardTitle className="text-lg">{workout.title}</CardTitle>
+                          <CardTitle className={`text-lg ${workout.completed ? "line-through text-slate-500" : ""}`}>
+                            {workout.title}
+                          </CardTitle>
                           <CardDescription className="flex items-center gap-2 mt-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(workout.date).toLocaleDateString()}
+                            {workout.due_date ? new Date(workout.due_date).toLocaleDateString() : "No date"}
                           </CardDescription>
                         </div>
                       </div>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => toggleStar(workout, true)}>
+                          <Star
+                            className={`h-4 w-4 ${workout.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
+                          />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -228,16 +257,13 @@ export default function Home() {
                     {workout.description && <p className="text-sm text-slate-600">{workout.description}</p>}
 
                     <div className="flex flex-wrap gap-2">
-                      {workout.difficulty && (
-                        <Badge className={difficultyColors[workout.difficulty]}>{workout.difficulty}</Badge>
+                      {workout.priority && (
+                        <Badge className={priorityColors[workout.priority as keyof typeof priorityColors]}>
+                          {workout.priority} intensity
+                        </Badge>
                       )}
-                      {workout.duration_minutes && <Badge variant="outline">{workout.duration_minutes}min</Badge>}
-                      {workout.distance_miles && <Badge variant="outline">{workout.distance_miles}mi</Badge>}
+                      {workout.completed && <Badge className="bg-green-100 text-green-800">Completed</Badge>}
                     </div>
-
-                    {workout.location && <p className="text-sm text-slate-500">📍 {workout.location}</p>}
-
-                    {workout.notes && <p className="text-sm text-slate-600 italic">{workout.notes}</p>}
                   </CardContent>
                 </Card>
               ))}
@@ -261,7 +287,7 @@ export default function Home() {
 
           <TabsContent value="goals" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-3xl font-bold text-slate-800">Fitness Goals</h2>
+              <h2 className="text-3xl font-bold text-slate-800">Goals & Todos</h2>
               <Button
                 onClick={() => setShowGoalForm(true)}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
@@ -272,106 +298,77 @@ export default function Home() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              {goals.map((goal) => {
-                const progressPercentage = goal.target_value
-                  ? Math.min((goal.current_value / goal.target_value) * 100, 100)
-                  : 0
+              {goals.map((goal) => (
+                <Card
+                  key={goal.id}
+                  className={`hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm ${goal.completed ? "opacity-75" : ""}`}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleComplete(goal)}
+                        className="mt-0.5 h-6 w-6"
+                      >
+                        {goal.completed ? (
+                          <CheckCircle className="h-5 w-5 text-green-600" />
+                        ) : (
+                          <Circle className="h-5 w-5 text-slate-400" />
+                        )}
+                      </Button>
 
-                return (
-                  <Card
-                    key={goal.id}
-                    className={`hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm ${goal.completed ? "opacity-75" : ""}`}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg">{goal.emoji || "🎯"}</span>
+                          <h3
+                            className={`font-semibold ${goal.completed ? "line-through text-slate-500" : "text-slate-800"}`}
+                          >
+                            {goal.title}
+                          </h3>
+                          {goal.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                        </div>
+
+                        {goal.description && <p className="text-sm text-slate-600 mb-2">{goal.description}</p>}
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {goal.priority && (
+                            <Badge className={priorityColors[goal.priority as keyof typeof priorityColors]}>
+                              {goal.priority}
+                            </Badge>
+                          )}
+                          {goal.due_date && (
+                            <Badge variant="outline" className="text-xs">
+                              📅 {new Date(goal.due_date).toLocaleDateString()}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => toggleStar(goal)}>
+                          <Star
+                            className={`h-4 w-4 ${goal.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
+                          />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => toggleGoalComplete(goal)}
-                          className="mt-0.5 h-6 w-6"
+                          onClick={() => {
+                            setEditingGoal(goal)
+                            setShowGoalForm(true)
+                          }}
                         >
-                          {goal.completed ? (
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                          ) : (
-                            <Circle className="h-5 w-5 text-slate-400" />
-                          )}
+                          <Edit className="h-4 w-4" />
                         </Button>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-lg">🎯</span>
-                            {goal.activity_type !== "general" && (
-                              <span className="text-lg">
-                                {activityIcons[goal.activity_type as keyof typeof activityIcons]}
-                              </span>
-                            )}
-                            <h3
-                              className={`font-semibold ${goal.completed ? "line-through text-slate-500" : "text-slate-800"}`}
-                            >
-                              {goal.title}
-                            </h3>
-                          </div>
-
-                          {goal.description && <p className="text-sm text-slate-600 mb-2">{goal.description}</p>}
-
-                          {goal.target_value && (
-                            <div className="mb-2">
-                              <div className="flex justify-between text-sm mb-1">
-                                <span>Progress</span>
-                                <span>
-                                  {goal.current_value} / {goal.target_value} {goal.target_unit}
-                                </span>
-                              </div>
-                              <div className="w-full bg-slate-200 rounded-full h-2">
-                                <div
-                                  className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${progressPercentage}%` }}
-                                />
-                              </div>
-                              <div className="flex gap-2 mt-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => updateGoalProgress(goal, goal.current_value + 1)}
-                                  disabled={goal.completed}
-                                >
-                                  <TrendingUp className="h-3 w-3 mr-1" />
-                                  +1
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-2">
-                            <Badge variant="default">Goal</Badge>
-                            {goal.target_date && (
-                              <Badge variant="outline" className="text-xs">
-                                📅 {new Date(goal.target_date).toLocaleDateString()}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingGoal(goal)
-                              setShowGoalForm(true)
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteGoal(goal.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => deleteGoal(goal.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
             {goals.length === 0 && (

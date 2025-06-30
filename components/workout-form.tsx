@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { supabase, type ActivityType, type Difficulty, type Workout } from "@/lib/supabase"
+import { supabase, type Todo } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { X, Save } from "lucide-react"
 
 interface WorkoutFormProps {
-  workout?: Workout
+  workout?: Todo
   onClose: () => void
   onSave: () => void
 }
@@ -21,30 +21,29 @@ interface WorkoutFormProps {
 export default function WorkoutForm({ workout, onClose, onSave }: WorkoutFormProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
-    activity_type: workout?.activity_type || ("running" as ActivityType),
+    emoji: workout?.emoji || "🏃",
     title: workout?.title || "",
     description: workout?.description || "",
-    duration_minutes: workout?.duration_minutes?.toString() || "",
-    distance_miles: workout?.distance_miles?.toString() || "",
-    difficulty: workout?.difficulty || ("moderate" as Difficulty),
-    location: workout?.location || "",
-    notes: workout?.notes || "",
-    date: workout?.date || new Date().toISOString().split("T")[0],
+    priority: workout?.priority || "medium",
+    due_date: workout?.due_date
+      ? new Date(workout.due_date).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0],
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
+    // Create workout data - we'll use emoji to identify workouts vs goals
     const workoutData = {
       ...formData,
-      duration_minutes: formData.duration_minutes ? Number.parseInt(formData.duration_minutes) : null,
-      distance_miles: formData.distance_miles ? Number.parseFloat(formData.distance_miles) : null,
+      due_date: formData.due_date ? new Date(formData.due_date).toISOString() : null,
+      // Don't set project_id since it expects UUID
     }
 
     try {
       if (workout) {
-        const { error } = await supabase.from("workouts").update(workoutData).eq("id", workout.id)
+        const { error } = await supabase.from("todos").update(workoutData).eq("id", workout.id)
 
         if (error) throw error
       } else {
@@ -53,7 +52,7 @@ export default function WorkoutForm({ workout, onClose, onSave }: WorkoutFormPro
         } = await supabase.auth.getUser()
         if (!user) throw new Error("No user found")
 
-        const { error } = await supabase.from("workouts").insert([{ ...workoutData, user_id: user.id }])
+        const { error } = await supabase.from("todos").insert([{ ...workoutData, user_id: user.id }])
 
         if (error) throw error
       }
@@ -68,19 +67,23 @@ export default function WorkoutForm({ workout, onClose, onSave }: WorkoutFormPro
     }
   }
 
-  const activityIcons = {
-    running: "🏃",
-    climbing: "🧗",
-    hiking: "🥾",
-    snowboarding: "🏂",
-  }
+  const activityOptions = [
+    { value: "🏃", label: "🏃 Running" },
+    { value: "🧗", label: "🧗 Climbing" },
+    { value: "🥾", label: "🥾 Hiking" },
+    { value: "🏂", label: "🏂 Snowboarding" },
+    { value: "🚴", label: "🚴 Cycling" },
+    { value: "🏊", label: "🏊 Swimming" },
+    { value: "💪", label: "💪 Strength Training" },
+    { value: "🧘", label: "🧘 Yoga" },
+  ]
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <span className="text-2xl">{activityIcons[formData.activity_type]}</span>
+            <span className="text-2xl">{formData.emoji}</span>
             {workout ? "Edit Workout" : "Add New Workout"}
           </CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -91,116 +94,69 @@ export default function WorkoutForm({ workout, onClose, onSave }: WorkoutFormPro
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="activity_type">Activity Type</Label>
-                <Select
-                  value={formData.activity_type}
-                  onValueChange={(value: ActivityType) => setFormData({ ...formData, activity_type: value })}
-                >
+                <Label htmlFor="emoji">Activity Type</Label>
+                <Select value={formData.emoji} onValueChange={(value) => setFormData({ ...formData, emoji: value })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="running">🏃 Running</SelectItem>
-                    <SelectItem value="climbing">🧗 Climbing</SelectItem>
-                    <SelectItem value="hiking">🥾 Hiking</SelectItem>
-                    <SelectItem value="snowboarding">🏂 Snowboarding</SelectItem>
+                    {activityOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="due_date">Workout Date</Label>
                 <Input
-                  id="date"
+                  id="due_date"
                   type="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  value={formData.due_date}
+                  onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                   required
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">Workout Title</Label>
               <Input
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="e.g., Morning trail run"
+                placeholder="e.g., Morning trail run, Rock climbing session"
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Workout Details</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Brief description of your workout"
-                rows={3}
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={formData.duration_minutes}
-                  onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
-                  placeholder="60"
-                />
-              </div>
-              <div>
-                <Label htmlFor="distance">Distance (miles)</Label>
-                <Input
-                  id="distance"
-                  type="number"
-                  step="0.1"
-                  value={formData.distance_miles}
-                  onChange={(e) => setFormData({ ...formData, distance_miles: e.target.value })}
-                  placeholder="5.0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="difficulty">Difficulty</Label>
-                <Select
-                  value={formData.difficulty}
-                  onValueChange={(value: Difficulty) => setFormData({ ...formData, difficulty: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="easy">Easy</SelectItem>
-                    <SelectItem value="moderate">Moderate</SelectItem>
-                    <SelectItem value="hard">Hard</SelectItem>
-                    <SelectItem value="extreme">Extreme</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                placeholder="e.g., Rocky Mountain National Park"
+                placeholder="Duration, distance, location, notes, difficulty level..."
+                rows={4}
               />
             </div>
 
             <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Additional notes about your workout"
-                rows={3}
-              />
+              <Label htmlFor="priority">Intensity/Priority</Label>
+              <Select
+                value={formData.priority}
+                onValueChange={(value) => setFormData({ ...formData, priority: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low Intensity</SelectItem>
+                  <SelectItem value="medium">Medium Intensity</SelectItem>
+                  <SelectItem value="high">High Intensity</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex gap-2 pt-4">

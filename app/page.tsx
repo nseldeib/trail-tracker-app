@@ -297,92 +297,111 @@ export default function Home() {
               </Button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {goals.map((goal) => (
-                <Card
-                  key={goal.id}
-                  className={`hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm ${goal.completed ? "opacity-75" : ""}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleComplete(goal)}
-                        className="mt-0.5 h-6 w-6"
-                      >
-                        {goal.completed ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-slate-400" />
-                        )}
-                      </Button>
+            {goals.length === 0 || goals.every((goal) => goal.completed) ? (
+              <div
+                className="relative text-center py-24 rounded-xl overflow-hidden"
+                style={{
+                  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/placeholder.svg?height=600&width=1200')`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  minHeight: "400px",
+                }}
+              >
+                <div className="relative z-10 text-white">
+                  <Target className="h-16 w-16 text-white/80 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold mb-2">
+                    {goals.length === 0 ? "No goals set yet" : "All goals completed! 🎉"}
+                  </h3>
+                  <p className="text-white/90 mb-6 max-w-md mx-auto">
+                    {goals.length === 0
+                      ? "Set some fitness goals and track your progress in this beautiful space!"
+                      : "Amazing work! You've completed all your goals. Time to set new challenges!"}
+                  </p>
+                  <Button
+                    onClick={() => setShowGoalForm(true)}
+                    className="bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 transition-all"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {goals.length === 0 ? "Set Your First Goal" : "Set New Goals"}
+                  </Button>
+                </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-lg">{goal.emoji || "🎯"}</span>
-                          <h3
-                            className={`font-semibold ${goal.completed ? "line-through text-slate-500" : "text-slate-800"}`}
-                          >
-                            {goal.title}
-                          </h3>
-                          {goal.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
-                        </div>
-
-                        {goal.description && <p className="text-sm text-slate-600 mb-2">{goal.description}</p>}
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {goal.priority && (
-                            <Badge className={priorityColors[goal.priority as keyof typeof priorityColors]}>
-                              {goal.priority}
-                            </Badge>
-                          )}
-                          {goal.due_date && (
-                            <Badge variant="outline" className="text-xs">
-                              📅 {new Date(goal.due_date).toLocaleDateString()}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => toggleStar(goal)}>
-                          <Star
-                            className={`h-4 w-4 ${goal.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
-                          />
-                        </Button>
+                {/* Nature Photo Credit */}
+                <div className="absolute bottom-4 right-4 text-white/60 text-xs">📸 Nature Photo of the Day</div>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {goals.map((goal) => (
+                  <Card
+                    key={goal.id}
+                    className={`hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm ${goal.completed ? "opacity-75" : ""}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setEditingGoal(goal)
-                            setShowGoalForm(true)
-                          }}
+                          onClick={() => toggleComplete(goal)}
+                          className="mt-0.5 h-6 w-6"
                         >
-                          <Edit className="h-4 w-4" />
+                          {goal.completed ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-slate-400" />
+                          )}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteGoal(goal.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
 
-            {goals.length === 0 && (
-              <div className="text-center py-12">
-                <Target className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-600 mb-2">No goals set yet</h3>
-                <p className="text-slate-500 mb-4">Set some fitness goals and track your progress!</p>
-                <Button
-                  onClick={() => setShowGoalForm(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Set Your First Goal
-                </Button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg">{goal.emoji || "🎯"}</span>
+                            <h3
+                              className={`font-semibold ${goal.completed ? "line-through text-slate-500" : "text-slate-800"}`}
+                            >
+                              {goal.title}
+                            </h3>
+                            {goal.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                          </div>
+
+                          {goal.description && <p className="text-sm text-slate-600 mb-2">{goal.description}</p>}
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {goal.priority && (
+                              <Badge className={priorityColors[goal.priority as keyof typeof priorityColors]}>
+                                {goal.priority}
+                              </Badge>
+                            )}
+                            {goal.due_date && (
+                              <Badge variant="outline" className="text-xs">
+                                📅 {new Date(goal.due_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => toggleStar(goal)}>
+                            <Star
+                              className={`h-4 w-4 ${goal.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingGoal(goal)
+                              setShowGoalForm(true)
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteGoal(goal.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </TabsContent>

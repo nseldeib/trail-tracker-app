@@ -10,6 +10,7 @@ import { Plus, Edit, Trash2, Mountain, LogOut, CheckCircle, Circle, Target, Cale
 import Auth from "@/components/auth"
 import WorkoutForm from "@/components/workout-form"
 import GoalForm from "@/components/todo-form"
+import NatureBackground from "@/components/nature-background"
 import type { User } from "@supabase/supabase-js"
 
 export default function Home() {
@@ -301,45 +302,7 @@ export default function Home() {
             </div>
 
             {showNatureBackground ? (
-              <div
-                className="relative text-center py-24 rounded-xl overflow-hidden shadow-2xl"
-                style={{
-                  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/nature-background.png')`,
-                  backgroundSize: "cover",
-                  backgroundPosition: "center",
-                  minHeight: "500px",
-                }}
-              >
-                <div className="relative z-10 text-white max-w-2xl mx-auto px-6">
-                  <Target className="h-20 w-20 text-white/90 mx-auto mb-6" />
-                  <h3 className="text-3xl font-bold mb-4">
-                    {goals.length === 0 ? "No goals set yet" : "All goals completed! 🎉"}
-                  </h3>
-                  <p className="text-xl text-white/90 mb-8 leading-relaxed">
-                    {goals.length === 0
-                      ? "Set some fitness goals and track your progress in this beautiful space! Let nature inspire your next adventure."
-                      : "Amazing work! You've completed all your goals. Time to set new challenges and reach new heights!"}
-                  </p>
-                  <Button
-                    onClick={() => setShowGoalForm(true)}
-                    size="lg"
-                    className="bg-white/20 backdrop-blur-sm border-2 border-white/30 text-white hover:bg-white/30 hover:border-white/50 transition-all duration-300 text-lg px-8 py-3"
-                  >
-                    <Plus className="h-5 w-5 mr-3" />
-                    {goals.length === 0 ? "Set Your First Goal" : "Set New Goals"}
-                  </Button>
-                </div>
-
-                {/* Nature Photo Credit */}
-                <div className="absolute bottom-6 right-6 text-white/70 text-sm bg-black/20 backdrop-blur-sm rounded-full px-4 py-2">
-                  📸 Nature Photo of the Day
-                </div>
-
-                {/* Decorative elements */}
-                <div className="absolute top-8 left-8 text-white/30 text-6xl">🏔️</div>
-                <div className="absolute bottom-20 left-12 text-white/30 text-4xl">🌲</div>
-                <div className="absolute top-16 right-16 text-white/30 text-5xl">☀️</div>
-              </div>
+              <NatureBackground goals={goals} onAddGoal={() => setShowGoalForm(true)} />
             ) : (
               <div className="grid gap-4 md:grid-cols-2">
                 {goals.map((goal) => (

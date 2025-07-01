@@ -138,6 +138,9 @@ export default function Home() {
     high: "bg-red-100 text-red-800",
   }
 
+  // Check if goals section should show nature background
+  const showNatureBackground = goals.length === 0 || goals.every((goal) => goal.completed)
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
@@ -297,37 +300,45 @@ export default function Home() {
               </Button>
             </div>
 
-            {goals.length === 0 || goals.every((goal) => goal.completed) ? (
+            {showNatureBackground ? (
               <div
-                className="relative text-center py-24 rounded-xl overflow-hidden"
+                className="relative text-center py-24 rounded-xl overflow-hidden shadow-2xl"
                 style={{
-                  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/placeholder.svg?height=600&width=1200')`,
+                  backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/nature-background.png')`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  minHeight: "400px",
+                  minHeight: "500px",
                 }}
               >
-                <div className="relative z-10 text-white">
-                  <Target className="h-16 w-16 text-white/80 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold mb-2">
+                <div className="relative z-10 text-white max-w-2xl mx-auto px-6">
+                  <Target className="h-20 w-20 text-white/90 mx-auto mb-6" />
+                  <h3 className="text-3xl font-bold mb-4">
                     {goals.length === 0 ? "No goals set yet" : "All goals completed! 🎉"}
                   </h3>
-                  <p className="text-white/90 mb-6 max-w-md mx-auto">
+                  <p className="text-xl text-white/90 mb-8 leading-relaxed">
                     {goals.length === 0
-                      ? "Set some fitness goals and track your progress in this beautiful space!"
-                      : "Amazing work! You've completed all your goals. Time to set new challenges!"}
+                      ? "Set some fitness goals and track your progress in this beautiful space! Let nature inspire your next adventure."
+                      : "Amazing work! You've completed all your goals. Time to set new challenges and reach new heights!"}
                   </p>
                   <Button
                     onClick={() => setShowGoalForm(true)}
-                    className="bg-white/20 backdrop-blur-sm border border-white/30 text-white hover:bg-white/30 transition-all"
+                    size="lg"
+                    className="bg-white/20 backdrop-blur-sm border-2 border-white/30 text-white hover:bg-white/30 hover:border-white/50 transition-all duration-300 text-lg px-8 py-3"
                   >
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-5 w-5 mr-3" />
                     {goals.length === 0 ? "Set Your First Goal" : "Set New Goals"}
                   </Button>
                 </div>
 
                 {/* Nature Photo Credit */}
-                <div className="absolute bottom-4 right-4 text-white/60 text-xs">📸 Nature Photo of the Day</div>
+                <div className="absolute bottom-6 right-6 text-white/70 text-sm bg-black/20 backdrop-blur-sm rounded-full px-4 py-2">
+                  📸 Nature Photo of the Day
+                </div>
+
+                {/* Decorative elements */}
+                <div className="absolute top-8 left-8 text-white/30 text-6xl">🏔️</div>
+                <div className="absolute bottom-20 left-12 text-white/30 text-4xl">🌲</div>
+                <div className="absolute top-16 right-16 text-white/30 text-5xl">☀️</div>
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2">

@@ -20,25 +20,67 @@ interface WorkoutFormProps {
 
 export default function WorkoutForm({ workout, onClose, onSave }: WorkoutFormProps) {
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    emoji: workout?.emoji || "🏃",
-    title: workout?.title || "",
-    description: workout?.description || "",
-    priority: workout?.priority || "medium",
-    due_date: workout?.due_date
-      ? new Date(workout.due_date).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0],
+  const [formData, setFormData] = useState(() => {
+    // Parse existing description to extract structured data
+    let mileage = ""
+    let location = ""
+    let cleanDescription = workout?.description || ""
+
+    if (workout?.description) {
+      // Extract mileage (look for patterns like "5 miles", "3.2 mi", etc.)
+      const mileageMatch = workout.description.match(/(\d+\.?\d*)\s*(miles?|mi)/i)
+      if (mileageMatch) {
+        mileage = mileageMatch[1]
+        cleanDescription = cleanDescription.replace(mileageMatch[0], "").trim()
+      }
+
+      // Extract location (look for "Location:" or "At:" patterns)
+      const locationMatch = workout.description.match(/(?:Location|At):\s*([^\n,]+)/i)
+      if (locationMatch) {
+        location = locationMatch[1].trim()
+        cleanDescription = cleanDescription.replace(locationMatch[0], "").trim()
+      }
+    }
+
+    return {
+      emoji: workout?.emoji || "🏃",
+      title: workout?.title || "",
+      description: cleanDescription,
+      priority: workout?.priority || "medium",
+      due_date: workout?.due_date
+        ? new Date(workout.due_date).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0],
+      mileage,
+      location,
+    }
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
-    // Create workout data - we'll use emoji to identify workouts vs goals
+    // Build description with structured data
+    let combinedDescription = formData.description
+
+    // Add mileage if provided
+    if (formData.mileage) {
+      const mileageText = `${formData.mileage} miles`
+      combinedDescription = combinedDescription ? `${combinedDescription}\n${mileageText}` : mileageText
+    }
+
+    // Add location if provided
+    if (formData.location) {
+      const locationText = `Location: ${formData.location}`
+      combinedDescription = combinedDescription ? `${combinedDescription}\n${locationText}` : locationText
+    }
+
+    // Create workout data
     const workoutData = {
-      ...formData,
+      emoji: formData.emoji,
+      title: formData.title,
+      description: combinedDescription,
+      priority: formData.priority,
       due_date: formData.due_date ? new Date(formData.due_date).toISOString() : null,
-      // Don't set project_id since it expects UUID
     }
 
     try {
@@ -137,10 +179,49 @@ export default function WorkoutForm({ workout, onClose, onSave }: WorkoutFormPro
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Duration, distance, location, notes, difficulty level..."
-                rows={4}
+                placeholder="Duration, notes, difficulty level, weather conditions..."
+                rows={3}
               />
             </div>
+
+            {/* Add hiking-specific fields */}
+            {(formData.emoji === "🥾" || formData.emoji === "🏃") && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="mileage">Distance (miles)</Label>
+                  <Input
+                    id="mileage"
+                    type="number"
+                    step="0.1"
+                    value={formData.mileage}
+                    onChange={(e) => setFormData({ ...formData, mileage: e.target.value })}
+                    placeholder="e.g., 5.2"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="e.g., Blue Ridge Trail, Central Park"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Show location field for other activities too */}
+            {formData.emoji !== "🥾" && formData.emoji !== "🏃" && (
+              <div>
+                <Label htmlFor="location">Location (optional)</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="Where did this workout take place?"
+                />
+              </div>
+            )}
 
             <div>
               <Label htmlFor="priority">Intensity/Priority</Label>

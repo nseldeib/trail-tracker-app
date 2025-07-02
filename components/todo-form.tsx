@@ -85,7 +85,7 @@ export default function GoalForm({ goal, onClose, onSave }: GoalFormProps) {
           </Button>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="emoji">Goal Type</Label>
@@ -112,9 +112,9 @@ export default function GoalForm({ goal, onClose, onSave }: GoalFormProps) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="low">Low Priority</SelectItem>
+                    <SelectItem value="medium">Medium Priority</SelectItem>
+                    <SelectItem value="high">High Priority</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -126,19 +126,19 @@ export default function GoalForm({ goal, onClose, onSave }: GoalFormProps) {
                 id="title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="e.g., Run a marathon, Learn a new skill"
+                placeholder="e.g., Run a marathon, Learn a new skill, Complete a project"
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">Description & Details</Label>
               <Textarea
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Additional details about your goal..."
-                rows={3}
+                placeholder="Describe your goal, steps to achieve it, or any additional notes..."
+                rows={4}
               />
             </div>
 
@@ -152,7 +152,7 @@ export default function GoalForm({ goal, onClose, onSave }: GoalFormProps) {
               />
             </div>
 
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={loading} className="flex-1">
                 <Save className="h-4 w-4 mr-2" />
                 {loading ? "Saving..." : "Save Goal"}

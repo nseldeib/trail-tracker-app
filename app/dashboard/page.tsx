@@ -1,297 +1,352 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase, type Todo, type Profile } from "@/lib/supabase"
+import { supabase, type Todo, WORKOUT_EMOJIS, GOAL_EMOJIS } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CalendarDays, Target, Trophy, TrendingUp, Plus, Dumbbell } from "lucide-react"
-import Link from "next/link"
+import { Mountain, LogOut, Target, Calendar, TrendingUp, Plus, ArrowRight, CheckCircle, Activity } from "lucide-react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import type { User } from "@supabase/supabase-js"
 import DailyCheckin from "@/components/daily-checkin"
 
-export default function Dashboard() {
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
+export default function DashboardPage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
   const [workouts, setWorkouts] = useState<Todo[]>([])
   const [goals, setGoals] = useState<Todo[]>([])
-  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    checkUser()
-  }, [])
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user)
+        setLoading(false)
+      } else {
+        router.push("/auth/signin")
+      }
+    })
 
-  const checkUser = async () => {
+    // Listen for auth changes
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser(session.user)
+      } else {
+        router.push("/auth/signin")
+      }
+    })
 
-    if (!user) {
-      router.push("/auth/signin")
-      return
+    return () => subscription.unsubscribe()
+  }, [router])
+
+  useEffect(() => {
+    if (user) {
+      fetchRecentData()
     }
+  }, [user])
 
-    setUser(user)
-    await Promise.all([fetchProfile(user.id), fetchWorkouts(user.id), fetchGoals(user.id)])
-    setLoading(false)
-  }
-
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single()
-
-    if (data) {
-      setProfile(data)
-    }
-  }
-
-  const fetchWorkouts = async (userId: string) => {
-    const { data } = await supabase
+  const fetchRecentData = async () => {
+    // Fetch recent workouts
+    const { data: workoutData } = await supabase
       .from("todos")
       .select("*")
-      .eq("user_id", userId)
-      .in("emoji", ["🏃", "🧗", "🥾", "🏂", "🚴", "🏊", "💪", "🧘"])
-      .order("created_at", { ascending: false })
-      .limit(5)
+      .in("emoji", WORKOUT_EMOJIS)
+      .order("due_date", { ascending: false })
+      .limit(3)
 
-    if (data) {
-      setWorkouts(data)
-    }
-  }
-
-  const fetchGoals = async (userId: string) => {
-    const { data } = await supabase
+    // Fetch recent goals
+    const { data: goalData } = await supabase
       .from("todos")
       .select("*")
-      .eq("user_id", userId)
-      .in("emoji", ["🎯", "🏆", "📚", "💡", "🌟", "🔥", "⚡", "🚀"])
+      .in("emoji", GOAL_EMOJIS)
       .order("created_at", { ascending: false })
-      .limit(5)
+      .limit(3)
 
-    if (data) {
-      setGoals(data)
-    }
+    setWorkouts(workoutData || [])
+    setGoals(goalData || [])
   }
 
-  const getCompletionRate = (items: Todo[]) => {
-    if (items.length === 0) return 0
-    const completed = items.filter((item) => item.completed).length
-    return Math.round((completed / items.length) * 100)
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push("/")
   }
 
-  const getStreakDays = () => {
-    // Simple mock streak calculation
-    return Math.floor(Math.random() * 15) + 1
-  }
+  // Calculate stats
+  const completedWorkouts = workouts.filter((w) => w.completed).length
+  const completedGoals = goals.filter((g) => g.completed).length
+  const totalWorkouts = workouts.length
+  const totalGoals = goals.length
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <Mountain className="h-12 w-12 text-emerald-600 animate-pulse mx-auto mb-4" />
           <p className="text-slate-600">Loading your dashboard...</p>
         </div>
       </div>
     )
   }
 
+  if (!user) {
+    return null // Will redirect to signin
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}! 👋
-          </h1>
-          <p className="text-slate-600">Here's your fitness journey overview</p>
-        </div>
-
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Daily Check-in */}
-          <div className="lg:col-span-1">{user && <DailyCheckin userId={user.id} />}</div>
-
-          {/* Right Column - Stats and Overview */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-600">Current Streak</p>
-                      <p className="text-2xl font-bold text-emerald-600">{getStreakDays()} days</p>
-                    </div>
-                    <CalendarDays className="h-8 w-8 text-emerald-600" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-600">Workout Rate</p>
-                      <p className="text-2xl font-bold text-blue-600">{getCompletionRate(workouts)}%</p>
-                    </div>
-                    <TrendingUp className="h-8 w-8 text-blue-600" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-600">Goals Progress</p>
-                      <p className="text-2xl font-bold text-purple-600">{getCompletionRate(goals)}%</p>
-                    </div>
-                    <Target className="h-8 w-8 text-purple-600" />
-                  </div>
-                </CardContent>
-              </Card>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-emerald-100 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-3">
+                <Mountain className="h-8 w-8 text-emerald-600" />
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  Trail Tracker
+                </h1>
+              </div>
+              <nav className="hidden md:flex items-center gap-6">
+                <Link href="/dashboard" className="text-emerald-600 font-medium border-b-2 border-emerald-600 pb-1">
+                  Dashboard
+                </Link>
+                <Link href="/dashboard/workouts" className="text-slate-600 hover:text-emerald-600 transition-colors">
+                  Workouts
+                </Link>
+                <Link href="/dashboard/goals" className="text-slate-600 hover:text-emerald-600 transition-colors">
+                  Goals
+                </Link>
+              </nav>
             </div>
-
-            {/* Recent Activity */}
-            <Tabs defaultValue="workouts" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="workouts" className="flex items-center gap-2">
-                  <Dumbbell className="h-4 w-4" />
-                  Recent Workouts
-                </TabsTrigger>
-                <TabsTrigger value="goals" className="flex items-center gap-2">
-                  <Target className="h-4 w-4" />
-                  Active Goals
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="workouts" className="space-y-4">
-                <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Recent Workouts</CardTitle>
-                      <CardDescription>Your latest training sessions</CardDescription>
-                    </div>
-                    <Link href="/dashboard/workouts">
-                      <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Workout
-                      </Button>
-                    </Link>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {workouts.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500">
-                        <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>No workouts yet. Start your fitness journey!</p>
-                        <Link href="/dashboard/workouts">
-                          <Button className="mt-3 bg-emerald-600 hover:bg-emerald-700">Add Your First Workout</Button>
-                        </Link>
-                      </div>
-                    ) : (
-                      workouts.map((workout) => (
-                        <div key={workout.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl">{workout.emoji}</span>
-                            <div>
-                              <p className="font-medium text-slate-900">{workout.title}</p>
-                              {workout.description && <p className="text-sm text-slate-600">{workout.description}</p>}
-                            </div>
-                          </div>
-                          <Badge variant={workout.completed ? "default" : "secondary"}>
-                            {workout.completed ? "Completed" : "Planned"}
-                          </Badge>
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="goals" className="space-y-4">
-                <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle className="text-lg">Active Goals</CardTitle>
-                      <CardDescription>Your current fitness objectives</CardDescription>
-                    </div>
-                    <Link href="/dashboard/goals">
-                      <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Goal
-                      </Button>
-                    </Link>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {goals.length === 0 ? (
-                      <div className="text-center py-8 text-slate-500">
-                        <Target className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>No goals set yet. Define your targets!</p>
-                        <Link href="/dashboard/goals">
-                          <Button className="mt-3 bg-purple-600 hover:bg-purple-700">Set Your First Goal</Button>
-                        </Link>
-                      </div>
-                    ) : (
-                      goals.map((goal) => (
-                        <div key={goal.id} className="p-3 bg-slate-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl">{goal.emoji}</span>
-                              <div>
-                                <p className="font-medium text-slate-900">{goal.title}</p>
-                                {goal.description && <p className="text-sm text-slate-600">{goal.description}</p>}
-                              </div>
-                            </div>
-                            <Badge variant={goal.completed ? "default" : "secondary"}>
-                              {goal.completed ? "Achieved" : "In Progress"}
-                            </Badge>
-                          </div>
-                          {goal.due_date && (
-                            <p className="text-xs text-slate-500">
-                              Target: {new Date(goal.due_date).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-slate-600 hidden sm:block">Welcome, {user.email}</span>
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Quick Actions */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/dashboard/workouts">
-            <Card className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 transition-all cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <Dumbbell className="h-8 w-8 mx-auto mb-2" />
-                <h3 className="font-semibold">Log Workout</h3>
-                <p className="text-sm opacity-90">Track your training session</p>
-              </CardContent>
-            </Card>
-          </Link>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-slate-800 mb-2">Welcome back!</h2>
+          <p className="text-slate-600">Here's an overview of your fitness journey.</p>
+        </div>
 
-          <Link href="/dashboard/goals">
-            <Card className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white hover:from-purple-600 hover:to-indigo-700 transition-all cursor-pointer">
-              <CardContent className="p-6 text-center">
-                <Target className="h-8 w-8 mx-auto mb-2" />
-                <h3 className="font-semibold">Set Goal</h3>
-                <p className="text-sm opacity-90">Define your next target</p>
-              </CardContent>
-            </Card>
-          </Link>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Total Workouts</p>
+                  <p className="text-3xl font-bold text-slate-800">{totalWorkouts}</p>
+                </div>
+                <Activity className="h-8 w-8 text-emerald-600" />
+              </div>
+            </CardContent>
+          </Card>
 
-          <Card className="bg-gradient-to-r from-orange-500 to-red-600 text-white cursor-pointer">
-            <CardContent className="p-6 text-center">
-              <Trophy className="h-8 w-8 mx-auto mb-2" />
-              <h3 className="font-semibold">View Progress</h3>
-              <p className="text-sm opacity-90">See your achievements</p>
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Completed Workouts</p>
+                  <p className="text-3xl font-bold text-slate-800">{completedWorkouts}</p>
+                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Active Goals</p>
+                  <p className="text-3xl font-bold text-slate-800">{totalGoals}</p>
+                </div>
+                <Target className="h-8 w-8 text-emerald-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Completed Goals</p>
+                  <p className="text-3xl font-bold text-slate-800">{completedGoals}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-600" />
+              </div>
             </CardContent>
           </Card>
         </div>
-      </div>
+
+        {/* Daily Check-in */}
+        <div className="mb-8">
+          <DailyCheckin userId={user.id} />
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid md:grid-cols-2 gap-8 mb-8">
+          <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Track a Workout</h3>
+                  <p className="text-emerald-100 mb-4">Log your latest outdoor adventure</p>
+                  <Link href="/dashboard/workouts">
+                    <Button className="bg-white text-emerald-600 hover:bg-emerald-50">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Workout
+                    </Button>
+                  </Link>
+                </div>
+                <Mountain className="h-16 w-16 text-emerald-200" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-teal-500 to-cyan-600 text-white border-0 shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">Set a Goal</h3>
+                  <p className="text-teal-100 mb-4">Define your next fitness milestone</p>
+                  <Link href="/dashboard/goals">
+                    <Button className="bg-white text-teal-600 hover:bg-teal-50">
+                      <Target className="h-4 w-4 mr-2" />
+                      Add Goal
+                    </Button>
+                  </Link>
+                </div>
+                <Target className="h-16 w-16 text-teal-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Recent Workouts */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Mountain className="h-5 w-5 text-emerald-600" />
+                  Recent Workouts
+                </CardTitle>
+                <CardDescription>Your latest outdoor activities</CardDescription>
+              </div>
+              <Link href="/dashboard/workouts">
+                <Button variant="ghost" size="sm">
+                  View All
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {workouts.length > 0 ? (
+                workouts.slice(0, 3).map((workout) => (
+                  <div key={workout.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                    <span className="text-xl">{workout.emoji || "🏃"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-800 truncate">{workout.title}</p>
+                      <p className="text-sm text-slate-600 flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {workout.due_date ? new Date(workout.due_date).toLocaleDateString() : "No date"}
+                      </p>
+                    </div>
+                    {workout.completed && <CheckCircle className="h-4 w-4 text-green-600" />}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Mountain className="h-12 w-12 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500">No workouts yet</p>
+                  <Link href="/dashboard/workouts">
+                    <Button variant="outline" size="sm" className="mt-2 bg-transparent">
+                      Add your first workout
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Goals */}
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-emerald-600" />
+                  Recent Goals
+                </CardTitle>
+                <CardDescription>Your fitness objectives</CardDescription>
+              </div>
+              <Link href="/dashboard/goals">
+                <Button variant="ghost" size="sm">
+                  View All
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {goals.length > 0 ? (
+                goals.slice(0, 3).map((goal) => (
+                  <div key={goal.id} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                    <span className="text-xl">{goal.emoji || "🎯"}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-800 truncate">{goal.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {goal.priority && (
+                          <Badge
+                            variant="outline"
+                            className={
+                              goal.priority === "high"
+                                ? "text-red-600 border-red-200"
+                                : goal.priority === "medium"
+                                  ? "text-yellow-600 border-yellow-200"
+                                  : "text-blue-600 border-blue-200"
+                            }
+                          >
+                            {goal.priority}
+                          </Badge>
+                        )}
+                        {goal.due_date && (
+                          <span className="text-xs text-slate-500">
+                            Due {new Date(goal.due_date).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {goal.completed && <CheckCircle className="h-4 w-4 text-green-600" />}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Target className="h-12 w-12 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500">No goals yet</p>
+                  <Link href="/dashboard/goals">
+                    <Button variant="outline" size="sm" className="mt-2 bg-transparent">
+                      Set your first goal
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </main>
     </div>
   )
 }

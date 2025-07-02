@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS daily_checkins (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  date DATE NOT NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
   score INTEGER NOT NULL CHECK (score >= 1 AND score <= 10),
   notes TEXT,
   emotions TEXT[],
@@ -13,6 +13,12 @@ CREATE TABLE IF NOT EXISTS daily_checkins (
 
 -- Enable RLS
 ALTER TABLE daily_checkins ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view their own daily check-ins" ON daily_checkins;
+DROP POLICY IF EXISTS "Users can insert their own daily check-ins" ON daily_checkins;
+DROP POLICY IF EXISTS "Users can update their own daily check-ins" ON daily_checkins;
+DROP POLICY IF EXISTS "Users can delete their own daily check-ins" ON daily_checkins;
 
 -- Create policies
 CREATE POLICY "Users can view their own daily check-ins" ON daily_checkins
@@ -27,7 +33,7 @@ CREATE POLICY "Users can update their own daily check-ins" ON daily_checkins
 CREATE POLICY "Users can delete their own daily check-ins" ON daily_checkins
   FOR DELETE USING (auth.uid() = user_id);
 
--- Create updated_at trigger
+-- Create updated_at trigger function if it doesn't exist
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -36,5 +42,11 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_daily_checkins_updated_at BEFORE UPDATE
-  ON daily_checkins FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- Drop existing trigger if it exists
+DROP TRIGGER IF EXISTS update_daily_checkins_updated_at ON daily_checkins;
+
+-- Create updated_at trigger
+CREATE TRIGGER update_daily_checkins_updated_at 
+  BEFORE UPDATE ON daily_checkins 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();

@@ -47,7 +47,7 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
         console.error("Error fetching check-in:", error)
         toast({
           title: "Error",
-          description: "Failed to load today's check-in",
+          description: "Failed to load today's check-in. Please make sure the database is set up correctly.",
           variant: "destructive",
         })
         return
@@ -68,7 +68,7 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
       console.error("Error fetching check-in:", error)
       toast({
         title: "Error",
-        description: "Failed to load today's check-in",
+        description: "Failed to load today's check-in. Please make sure the database is set up correctly.",
         variant: "destructive",
       })
     }
@@ -116,7 +116,7 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
           console.error("Error creating check-in:", error)
           toast({
             title: "Error",
-            description: error.message || "Failed to save check-in",
+            description: error.message || "Failed to save check-in. Please make sure the database is set up correctly.",
             variant: "destructive",
           })
           return
@@ -134,7 +134,7 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
       console.error("Error saving check-in:", error)
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: "An unexpected error occurred. Please make sure the database is set up correctly.",
         variant: "destructive",
       })
     } finally {

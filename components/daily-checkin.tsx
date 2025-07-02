@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Slider } from "@/components/ui/slider"
 import { Heart, Save, Edit, CheckCircle } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 interface DailyCheckinProps {
   userId: string
@@ -25,31 +26,51 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
     notes: "",
     emotions: [] as string[],
   })
+  const { toast } = useToast()
 
   useEffect(() => {
     fetchTodaysCheckin()
   }, [userId])
 
   const fetchTodaysCheckin = async () => {
-    const today = new Date().toISOString().split("T")[0]
+    try {
+      const today = new Date().toISOString().split("T")[0]
 
-    const { data, error } = await supabase
-      .from("daily_checkins")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("date", today)
-      .single()
+      const { data, error } = await supabase
+        .from("daily_checkins")
+        .select("*")
+        .eq("user_id", userId)
+        .eq("date", today)
+        .maybeSingle()
 
-    if (data) {
-      setCheckin(data)
-      setFormData({
-        score: data.score,
-        notes: data.notes || "",
-        emotions: data.emotions || [],
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching check-in:", error)
+        toast({
+          title: "Error",
+          description: "Failed to load today's check-in",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (data) {
+        setCheckin(data)
+        setFormData({
+          score: data.score,
+          notes: data.notes || "",
+          emotions: data.emotions || [],
+        })
+      } else {
+        // No check-in for today, start editing
+        setEditing(true)
+      }
+    } catch (error) {
+      console.error("Error fetching check-in:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load today's check-in",
+        variant: "destructive",
       })
-    } else if (!error || error.code === "PGRST116") {
-      // No check-in for today, start editing
-      setEditing(true)
     }
   }
 
@@ -57,33 +78,65 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
     e.preventDefault()
     setLoading(true)
 
-    const today = new Date().toISOString().split("T")[0]
-    const checkinData = {
-      user_id: userId,
-      date: today,
-      score: formData.score,
-      notes: formData.notes || null,
-      emotions: formData.emotions.length > 0 ? formData.emotions : null,
-    }
-
     try {
-      if (checkin) {
-        // Update existing check-in
-        const { error } = await supabase.from("daily_checkins").update(checkinData).eq("id", checkin.id)
-
-        if (error) throw error
-      } else {
-        // Create new check-in
-        const { error } = await supabase.from("daily_checkins").insert([checkinData])
-
-        if (error) throw error
+      const today = new Date().toISOString().split("T")[0]
+      const checkinData = {
+        user_id: userId,
+        date: today,
+        score: formData.score,
+        notes: formData.notes.trim() || null,
+        emotions: formData.emotions.length > 0 ? formData.emotions : null,
       }
 
-      await fetchTodaysCheckin()
+      if (checkin) {
+        // Update existing check-in
+        const { data, error } = await supabase
+          .from("daily_checkins")
+          .update(checkinData)
+          .eq("id", checkin.id)
+          .select()
+          .single()
+
+        if (error) {
+          console.error("Error updating check-in:", error)
+          toast({
+            title: "Error",
+            description: error.message || "Failed to update check-in",
+            variant: "destructive",
+          })
+          return
+        }
+
+        setCheckin(data)
+      } else {
+        // Create new check-in
+        const { data, error } = await supabase.from("daily_checkins").insert([checkinData]).select().single()
+
+        if (error) {
+          console.error("Error creating check-in:", error)
+          toast({
+            title: "Error",
+            description: error.message || "Failed to save check-in",
+            variant: "destructive",
+          })
+          return
+        }
+
+        setCheckin(data)
+      }
+
       setEditing(false)
+      toast({
+        title: "Success",
+        description: checkin ? "Check-in updated!" : "Check-in saved!",
+      })
     } catch (error) {
       console.error("Error saving check-in:", error)
-      alert("Error saving check-in")
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }

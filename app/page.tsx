@@ -1,203 +1,40 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase, type Todo, WORKOUT_EMOJIS, GOAL_EMOJIS } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Mountain,
-  LogOut,
-  CheckCircle,
-  Circle,
-  Target,
-  Calendar,
-  Star,
-  RefreshCw,
-} from "lucide-react"
-import Auth from "@/components/auth"
-import WorkoutForm from "@/components/workout-form"
-import GoalForm from "@/components/todo-form"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Mountain, ArrowRight, Target, TrendingUp } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import type { User } from "@supabase/supabase-js"
 
-export default function Home() {
+export default function LandingPage() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [workouts, setWorkouts] = useState<Todo[]>([])
-  const [goals, setGoals] = useState<Todo[]>([])
-  const [showWorkoutForm, setShowWorkoutForm] = useState(false)
-  const [showGoalForm, setShowGoalForm] = useState(false)
-  const [editingWorkout, setEditingWorkout] = useState<Todo | undefined>()
-  const [editingGoal, setEditingGoal] = useState<Todo | undefined>()
-  const [dailyPhoto, setDailyPhoto] = useState<string>("")
-  const [photoLoading, setPhotoLoading] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
-    // Get initial session
+    // Check if user is already signed in
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
+      if (session?.user) {
+        router.push("/dashboard")
+      } else {
+        setLoading(false)
+      }
     })
 
     // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      if (session?.user) {
+        router.push("/dashboard")
+      }
     })
 
     return () => subscription.unsubscribe()
-  }, [])
-
-  useEffect(() => {
-    if (user) {
-      fetchWorkouts()
-      fetchGoals()
-      fetchDailyPhoto()
-    }
-  }, [user])
-
-  const fetchDailyPhoto = async () => {
-    setPhotoLoading(true)
-    try {
-      // Use a more reliable approach with multiple fallbacks
-      const today = new Date().toISOString().split("T")[0]
-      const seed = today.replace(/-/g, "")
-
-      // Try multiple image services as fallbacks
-      const imageOptions = [
-        `https://picsum.photos/seed/${seed}/1200/800`,
-        `https://source.unsplash.com/1200x800/?nature,landscape&${seed}`,
-        `/placeholder.svg?height=800&width=1200&query=mountain landscape`,
-      ]
-
-      // Test the first image URL
-      const img = new Image()
-      img.crossOrigin = "anonymous"
-
-      img.onload = () => {
-        setDailyPhoto(imageOptions[0])
-        setPhotoLoading(false)
-      }
-
-      img.onerror = () => {
-        // Fallback to a gradient background if images fail
-        setDailyPhoto("")
-        setPhotoLoading(false)
-      }
-
-      img.src = imageOptions[0]
-    } catch (error) {
-      console.error("Error fetching daily photo:", error)
-      setDailyPhoto("")
-      setPhotoLoading(false)
-    }
-  }
-
-  const fetchWorkouts = async () => {
-    // Filter by workout emojis to identify workouts
-    const { data, error } = await supabase
-      .from("todos")
-      .select("*")
-      .in("emoji", WORKOUT_EMOJIS)
-      .order("due_date", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching workouts:", error)
-    } else {
-      setWorkouts(data || [])
-    }
-  }
-
-  const fetchGoals = async () => {
-    try {
-      // Filter by goal emojis to identify goals
-      const { data, error } = await supabase
-        .from("todos")
-        .select("*")
-        .in("emoji", GOAL_EMOJIS)
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Error fetching goals:", error)
-        return
-      }
-
-      setGoals(data || [])
-    } catch (error) {
-      console.error("Error fetching goals:", error)
-    }
-  }
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut()
-  }
-
-  const deleteWorkout = async (id: string) => {
-    if (confirm("Are you sure you want to delete this workout?")) {
-      const { error } = await supabase.from("todos").delete().eq("id", id)
-
-      if (error) {
-        console.error("Error deleting workout:", error)
-      } else {
-        fetchWorkouts()
-      }
-    }
-  }
-
-  const deleteGoal = async (id: string) => {
-    if (confirm("Are you sure you want to delete this goal?")) {
-      const { error } = await supabase.from("todos").delete().eq("id", id)
-
-      if (error) {
-        console.error("Error deleting goal:", error)
-      } else {
-        fetchGoals()
-      }
-    }
-  }
-
-  const toggleComplete = async (item: Todo, isWorkout = false) => {
-    const { error } = await supabase.from("todos").update({ completed: !item.completed }).eq("id", item.id)
-
-    if (error) {
-      console.error("Error updating item:", error)
-    } else {
-      if (isWorkout) {
-        fetchWorkouts()
-      } else {
-        fetchGoals()
-      }
-    }
-  }
-
-  const toggleStar = async (item: Todo, isWorkout = false) => {
-    const { error } = await supabase.from("todos").update({ starred: !item.starred }).eq("id", item.id)
-
-    if (error) {
-      console.error("Error updating item:", error)
-    } else {
-      if (isWorkout) {
-        fetchWorkouts()
-      } else {
-        fetchGoals()
-      }
-    }
-  }
-
-  const priorityColors = {
-    low: "bg-blue-100 text-blue-800",
-    medium: "bg-yellow-100 text-yellow-800",
-    high: "bg-red-100 text-red-800",
-  }
-
-  // Check if all goals are completed
-  const allGoalsCompleted = goals.length > 0 && goals.every((goal) => goal.completed)
-  const showNatureBackground = goals.length === 0 || allGoalsCompleted
+  }, [router])
 
   if (loading) {
     return (
@@ -210,14 +47,10 @@ export default function Home() {
     )
   }
 
-  if (!user) {
-    return <Auth />
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-emerald-100 sticky top-0 z-40">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-emerald-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
@@ -227,317 +60,110 @@ export default function Home() {
               </h1>
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-slate-600">Welcome, {user.email}</span>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
-              </Button>
+              <Link href="/auth/signin">
+                <Button variant="outline">Sign In</Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
+                  Get Started
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="workouts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md mx-auto">
-            <TabsTrigger value="workouts" className="flex items-center gap-2">
-              <Mountain className="h-4 w-4" />
-              Workouts
-            </TabsTrigger>
-            <TabsTrigger value="goals" className="flex items-center gap-2">
-              <Target className="h-4 w-4" />
-              Goals
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="workouts" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-3xl font-bold text-slate-800">Your Workouts</h2>
+      {/* Hero Section */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="text-center mb-16">
+          <h1 className="text-5xl font-bold text-slate-800 mb-6">
+            Track Your Outdoor
+            <span className="block bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              Adventures
+            </span>
+          </h1>
+          <p className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto">
+            Log your workouts, set fitness goals, and track your progress on your journey to outdoor mastery. From trail
+            runs to mountain climbs, capture every adventure.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <Link href="/auth/signup">
               <Button
-                onClick={() => setShowWorkoutForm(true)}
+                size="lg"
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Workout
+                Start Tracking
+                <ArrowRight className="h-5 w-5 ml-2" />
               </Button>
-            </div>
+            </Link>
+            <Link href="/auth/signin">
+              <Button size="lg" variant="outline">
+                Sign In
+              </Button>
+            </Link>
+          </div>
+        </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {workouts.map((workout) => (
-                <Card key={workout.id} className="hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleComplete(workout, true)}
-                          className="h-6 w-6"
-                        >
-                          {workout.completed ? (
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                          ) : (
-                            <Circle className="h-5 w-5 text-slate-400" />
-                          )}
-                        </Button>
-                        <span className="text-2xl">{workout.emoji || "🏃"}</span>
-                        <div>
-                          <CardTitle className={`text-lg ${workout.completed ? "line-through text-slate-500" : ""}`}>
-                            {workout.title}
-                          </CardTitle>
-                          <CardDescription className="flex items-center gap-2 mt-1">
-                            <Calendar className="h-3 w-3" />
-                            {workout.due_date ? new Date(workout.due_date).toLocaleDateString() : "No date"}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => toggleStar(workout, true)}>
-                          <Star
-                            className={`h-4 w-4 ${workout.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
-                          />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setEditingWorkout(workout)
-                            setShowWorkoutForm(true)
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteWorkout(workout.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {workout.description && <p className="text-sm text-slate-600">{workout.description}</p>}
+        {/* Features */}
+        <div className="grid md:grid-cols-3 gap-8 mb-16">
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="text-center">
+              <Mountain className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
+              <CardTitle className="text-xl">Track Workouts</CardTitle>
+              <CardDescription>
+                Log your outdoor activities including running, climbing, hiking, and snowboarding with detailed metrics.
+              </CardDescription>
+            </CardHeader>
+          </Card>
 
-                    <div className="flex flex-wrap gap-2">
-                      {workout.priority && (
-                        <Badge className={priorityColors[workout.priority as keyof typeof priorityColors]}>
-                          {workout.priority} intensity
-                        </Badge>
-                      )}
-                      {workout.completed && <Badge className="bg-green-100 text-green-800">Completed</Badge>}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="text-center">
+              <Target className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
+              <CardTitle className="text-xl">Set Goals</CardTitle>
+              <CardDescription>
+                Create fitness goals and track your progress with our intuitive goal-setting and monitoring system.
+              </CardDescription>
+            </CardHeader>
+          </Card>
 
-            {workouts.length === 0 && (
-              <div className="text-center py-12">
-                <Mountain className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-600 mb-2">No workouts yet</h3>
-                <p className="text-slate-500 mb-4">Start tracking your outdoor adventures!</p>
-                <Button
-                  onClick={() => setShowWorkoutForm(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Your First Workout
-                </Button>
-              </div>
-            )}
-          </TabsContent>
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="text-center">
+              <TrendingUp className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
+              <CardTitle className="text-xl">Monitor Progress</CardTitle>
+              <CardDescription>
+                Visualize your improvement over time with detailed analytics and beautiful progress tracking.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
 
-          <TabsContent value="goals" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-3xl font-bold text-slate-800">Goals & Todos</h2>
-              <div className="flex gap-2">
-                {showNatureBackground && (
-                  <Button variant="outline" size="sm" onClick={fetchDailyPhoto} disabled={photoLoading}>
-                    <RefreshCw className={`h-4 w-4 mr-2 ${photoLoading ? "animate-spin" : ""}`} />
-                    New Photo
-                  </Button>
-                )}
-                <Button
-                  onClick={() => setShowGoalForm(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Goal
-                </Button>
-              </div>
-            </div>
-
-            {/* Goals with nature background when empty or all completed */}
-            <div className={`relative ${showNatureBackground ? "min-h-[600px]" : ""}`}>
-              {showNatureBackground && (
-                <div
-                  className={`absolute inset-0 rounded-xl transition-all duration-500 ${
-                    dailyPhoto
-                      ? "bg-cover bg-center bg-no-repeat"
-                      : "bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600"
-                  }`}
-                  style={dailyPhoto ? { backgroundImage: `url(${dailyPhoto})` } : {}}
-                >
-                  <div className="absolute inset-0 bg-black/20 rounded-xl" />
-                  {photoLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 rounded-xl">
-                      <div className="bg-white/90 rounded-lg p-4">
-                        <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className={`relative z-10 ${showNatureBackground ? "p-8" : ""}`}>
-                {!showNatureBackground && (
-                  <div className="space-y-4">
-                    {goals.map((goal) => (
-                      <Card
-                        key={goal.id}
-                        className={`hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm ${goal.completed ? "opacity-75" : ""}`}
-                      >
-                        <CardContent className="p-6">
-                          <div className="flex items-start gap-4">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleComplete(goal)}
-                              className="mt-1 h-8 w-8 shrink-0"
-                            >
-                              {goal.completed ? (
-                                <CheckCircle className="h-5 w-5 text-green-600" />
-                              ) : (
-                                <Circle className="h-5 w-5 text-slate-400" />
-                              )}
-                            </Button>
-
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-3">
-                                <span className="text-xl">{goal.emoji || "🎯"}</span>
-                                <h3
-                                  className={`text-lg font-semibold ${goal.completed ? "line-through text-slate-500" : "text-slate-800"}`}
-                                >
-                                  {goal.title}
-                                </h3>
-                                {goal.starred && <Star className="h-4 w-4 text-yellow-500 fill-current ml-2" />}
-                              </div>
-
-                              {goal.description && (
-                                <p className="text-sm text-slate-600 mb-3 leading-relaxed">{goal.description}</p>
-                              )}
-
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {goal.priority && (
-                                  <Badge className={priorityColors[goal.priority as keyof typeof priorityColors]}>
-                                    {goal.priority} priority
-                                  </Badge>
-                                )}
-                                {goal.due_date && (
-                                  <Badge variant="outline" className="text-xs">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    {new Date(goal.due_date).toLocaleDateString()}
-                                  </Badge>
-                                )}
-                                {goal.completed && <Badge className="bg-green-100 text-green-800">Completed</Badge>}
-                              </div>
-                            </div>
-
-                            <div className="flex gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" onClick={() => toggleStar(goal)}>
-                                <Star
-                                  className={`h-4 w-4 ${goal.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
-                                />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  setEditingGoal(goal)
-                                  setShowGoalForm(true)
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => deleteGoal(goal.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-
-                {showNatureBackground && (
-                  <div className="text-center py-12">
-                    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-8 max-w-md mx-auto shadow-xl border border-white/20">
-                      {goals.length === 0 ? (
-                        <>
-                          <Target className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold text-slate-800 mb-2">No goals set yet</h3>
-                          <p className="text-slate-600 mb-6">Set some fitness goals and track your progress!</p>
-                          <Button
-                            onClick={() => setShowGoalForm(true)}
-                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Set Your First Goal
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" />
-                          <h3 className="text-xl font-semibold text-slate-800 mb-2">All Goals Completed! 🎉</h3>
-                          <p className="text-slate-600 mb-6">
-                            Amazing work! You've completed all your goals. Time to set new ones!
-                          </p>
-                          <Button
-                            onClick={() => setShowGoalForm(true)}
-                            className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Set New Goals
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+        {/* CTA Section */}
+        <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-lg">
+          <h2 className="text-3xl font-bold text-slate-800 mb-4">Ready to Start Your Journey?</h2>
+          <p className="text-lg text-slate-600 mb-8">
+            Join thousands of outdoor enthusiasts tracking their adventures with Trail Tracker.
+          </p>
+          <Link href="/auth/signup">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+            >
+              Create Your Account
+              <ArrowRight className="h-5 w-5 ml-2" />
+            </Button>
+          </Link>
+        </div>
       </main>
 
-      {/* Forms */}
-      {showWorkoutForm && (
-        <WorkoutForm
-          workout={editingWorkout}
-          onClose={() => {
-            setShowWorkoutForm(false)
-            setEditingWorkout(undefined)
-          }}
-          onSave={() => {
-            fetchWorkouts()
-            setEditingWorkout(undefined)
-          }}
-        />
-      )}
-
-      {showGoalForm && (
-        <GoalForm
-          goal={editingGoal}
-          onClose={() => {
-            setShowGoalForm(false)
-            setEditingGoal(undefined)
-          }}
-          onSave={() => {
-            fetchGoals()
-            setEditingGoal(undefined)
-          }}
-        />
-      )}
+      {/* Footer */}
+      <footer className="bg-white/80 backdrop-blur-sm border-t border-emerald-100 mt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center gap-3">
+            <Mountain className="h-6 w-6 text-emerald-600" />
+            <span className="text-slate-600">© 2024 Trail Tracker. Built for outdoor enthusiasts.</span>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

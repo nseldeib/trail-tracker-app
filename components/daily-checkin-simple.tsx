@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { supabase, type DailyCheckinType, EMOTION_OPTIONS } from "@/lib/supabase"
+import { supabase, type Todo, EMOTION_OPTIONS } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -17,8 +17,8 @@ interface DailyCheckinProps {
   userId: string
 }
 
-export default function DailyCheckin({ userId }: DailyCheckinProps) {
-  const [checkin, setCheckin] = useState<DailyCheckinType | null>(null)
+export default function DailyCheckinSimple({ userId }: DailyCheckinProps) {
+  const [checkin, setCheckin] = useState<Todo | null>(null)
   const [loading, setLoading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [formData, setFormData] = useState({
@@ -37,28 +37,31 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
       const today = new Date().toISOString().split("T")[0]
 
       const { data, error } = await supabase
-        .from("daily_checkins")
+        .from("todos")
         .select("*")
         .eq("user_id", userId)
-        .eq("date", today)
+        .eq("emoji", "❤️")
+        .eq("due_date", today)
         .maybeSingle()
 
       if (error && error.code !== "PGRST116") {
         console.error("Error fetching check-in:", error)
-        toast({
-          title: "Database Setup Required",
-          description: "Please run the daily check-ins database setup script first.",
-          variant: "destructive",
-        })
         return
       }
 
       if (data) {
         setCheckin(data)
+        // Parse the description to get score, notes, and emotions
+        const description = data.description || ""
+        const parts = description.split("|")
+        const score = Number.parseInt(parts[0]) || 5
+        const notes = parts[1] || ""
+        const emotions = parts[2] ? parts[2].split(",") : []
+
         setFormData({
-          score: data.score,
-          notes: data.notes || "",
-          emotions: data.emotions || [],
+          score,
+          notes,
+          emotions,
         })
       } else {
         // No check-in for today, start editing
@@ -66,11 +69,6 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
       }
     } catch (error) {
       console.error("Error fetching check-in:", error)
-      toast({
-        title: "Database Setup Required",
-        description: "Please run the daily check-ins database setup script first.",
-        variant: "destructive",
-      })
     }
   }
 
@@ -80,22 +78,21 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
 
     try {
       const today = new Date().toISOString().split("T")[0]
+      const description = `${formData.score}|${formData.notes}|${formData.emotions.join(",")}`
+
       const checkinData = {
         user_id: userId,
-        date: today,
-        score: formData.score,
-        notes: formData.notes.trim() || null,
-        emotions: formData.emotions.length > 0 ? formData.emotions : null,
+        title: `Daily Check-in - ${new Date().toLocaleDateString()}`,
+        description,
+        emoji: "❤️",
+        due_date: today,
+        completed: true,
+        priority: "medium",
       }
 
       if (checkin) {
         // Update existing check-in
-        const { data, error } = await supabase
-          .from("daily_checkins")
-          .update(checkinData)
-          .eq("id", checkin.id)
-          .select()
-          .single()
+        const { data, error } = await supabase.from("todos").update(checkinData).eq("id", checkin.id).select().single()
 
         if (error) {
           console.error("Error updating check-in:", error)
@@ -110,13 +107,13 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
         setCheckin(data)
       } else {
         // Create new check-in
-        const { data, error } = await supabase.from("daily_checkins").insert([checkinData]).select().single()
+        const { data, error } = await supabase.from("todos").insert([checkinData]).select().single()
 
         if (error) {
           console.error("Error creating check-in:", error)
           toast({
-            title: "Database Setup Required",
-            description: "Please run the daily check-ins database setup script first.",
+            title: "Error",
+            description: error.message || "Failed to save check-in",
             variant: "destructive",
           })
           return
@@ -133,8 +130,8 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
     } catch (error) {
       console.error("Error saving check-in:", error)
       toast({
-        title: "Database Setup Required",
-        description: "Please run the daily check-ins database setup script first.",
+        title: "Error",
+        description: "An unexpected error occurred",
         variant: "destructive",
       })
     } finally {
@@ -187,13 +184,13 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
             <div className="text-center">
-              <div className={`text-3xl font-bold ${getScoreColor(checkin.score)}`}>{checkin.score}/10</div>
-              <div className="text-sm text-slate-600">{getScoreLabel(checkin.score)}</div>
+              <div className={`text-3xl font-bold ${getScoreColor(formData.score)}`}>{formData.score}/10</div>
+              <div className="text-sm text-slate-600">{getScoreLabel(formData.score)}</div>
             </div>
-            {checkin.emotions && checkin.emotions.length > 0 && (
+            {formData.emotions && formData.emotions.length > 0 && (
               <div className="flex-1">
                 <div className="flex flex-wrap gap-1">
-                  {checkin.emotions.map((emotion) => {
+                  {formData.emotions.map((emotion) => {
                     const emotionOption = EMOTION_OPTIONS.find((e) => e.value === emotion)
                     return (
                       <Badge key={emotion} className={emotionOption?.color || "bg-gray-100 text-gray-800"}>
@@ -205,9 +202,9 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
               </div>
             )}
           </div>
-          {checkin.notes && (
+          {formData.notes && (
             <div>
-              <p className="text-sm text-slate-600 italic">"{checkin.notes}"</p>
+              <p className="text-sm text-slate-600 italic">"{formData.notes}"</p>
             </div>
           )}
         </CardContent>
@@ -298,11 +295,6 @@ export default function DailyCheckin({ userId }: DailyCheckinProps) {
                 variant="outline"
                 onClick={() => {
                   setEditing(false)
-                  setFormData({
-                    score: checkin.score,
-                    notes: checkin.notes || "",
-                    emotions: checkin.emotions || [],
-                  })
                 }}
               >
                 Cancel

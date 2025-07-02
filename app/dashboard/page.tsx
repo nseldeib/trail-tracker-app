@@ -9,7 +9,7 @@ import { Mountain, LogOut, Target, Calendar, TrendingUp, Plus, ArrowRight, Check
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { User } from "@supabase/supabase-js"
-import DailyCheckin from "@/components/daily-checkin"
+import DailyCheckinSimple from "@/components/daily-checkin-simple"
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -193,7 +193,7 @@ export default function DashboardPage() {
 
         {/* Daily Check-in */}
         <div className="mb-8">
-          <DailyCheckin userId={user.id} />
+          <DailyCheckinSimple userId={user.id} />
         </div>
 
         {/* Quick Actions */}

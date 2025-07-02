@@ -10,6 +10,7 @@ import { Plus, Edit, Trash2, Mountain, LogOut, CheckCircle, Circle, Target, Cale
 import Auth from "@/components/auth"
 import WorkoutForm from "@/components/workout-form"
 import GoalForm from "@/components/todo-form"
+import NatureBackground from "@/components/nature-background"
 import type { User } from "@supabase/supabase-js"
 
 export default function Home() {
@@ -137,6 +138,9 @@ export default function Home() {
     medium: "bg-yellow-100 text-yellow-800",
     high: "bg-red-100 text-red-800",
   }
+
+  // Check if goals section should show nature background
+  const showNatureBackground = goals.length === 0 || goals.every((goal) => goal.completed)
 
   if (loading) {
     return (
@@ -297,92 +301,81 @@ export default function Home() {
               </Button>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              {goals.map((goal) => (
-                <Card
-                  key={goal.id}
-                  className={`hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm ${goal.completed ? "opacity-75" : ""}`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleComplete(goal)}
-                        className="mt-0.5 h-6 w-6"
-                      >
-                        {goal.completed ? (
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-slate-400" />
-                        )}
-                      </Button>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-lg">{goal.emoji || "🎯"}</span>
-                          <h3
-                            className={`font-semibold ${goal.completed ? "line-through text-slate-500" : "text-slate-800"}`}
-                          >
-                            {goal.title}
-                          </h3>
-                          {goal.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
-                        </div>
-
-                        {goal.description && <p className="text-sm text-slate-600 mb-2">{goal.description}</p>}
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {goal.priority && (
-                            <Badge className={priorityColors[goal.priority as keyof typeof priorityColors]}>
-                              {goal.priority}
-                            </Badge>
-                          )}
-                          {goal.due_date && (
-                            <Badge variant="outline" className="text-xs">
-                              📅 {new Date(goal.due_date).toLocaleDateString()}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => toggleStar(goal)}>
-                          <Star
-                            className={`h-4 w-4 ${goal.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
-                          />
-                        </Button>
+            {showNatureBackground ? (
+              <NatureBackground goals={goals} onAddGoal={() => setShowGoalForm(true)} />
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {goals.map((goal) => (
+                  <Card
+                    key={goal.id}
+                    className={`hover:shadow-lg transition-shadow bg-white/80 backdrop-blur-sm ${goal.completed ? "opacity-75" : ""}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setEditingGoal(goal)
-                            setShowGoalForm(true)
-                          }}
+                          onClick={() => toggleComplete(goal)}
+                          className="mt-0.5 h-6 w-6"
                         >
-                          <Edit className="h-4 w-4" />
+                          {goal.completed ? (
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <Circle className="h-5 w-5 text-slate-400" />
+                          )}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteGoal(goal.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
 
-            {goals.length === 0 && (
-              <div className="text-center py-12">
-                <Target className="h-16 w-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-600 mb-2">No goals set yet</h3>
-                <p className="text-slate-500 mb-4">Set some fitness goals and track your progress!</p>
-                <Button
-                  onClick={() => setShowGoalForm(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Set Your First Goal
-                </Button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg">{goal.emoji || "🎯"}</span>
+                            <h3
+                              className={`font-semibold ${goal.completed ? "line-through text-slate-500" : "text-slate-800"}`}
+                            >
+                              {goal.title}
+                            </h3>
+                            {goal.starred && <Star className="h-4 w-4 text-yellow-500 fill-current" />}
+                          </div>
+
+                          {goal.description && <p className="text-sm text-slate-600 mb-2">{goal.description}</p>}
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {goal.priority && (
+                              <Badge className={priorityColors[goal.priority as keyof typeof priorityColors]}>
+                                {goal.priority}
+                              </Badge>
+                            )}
+                            {goal.due_date && (
+                              <Badge variant="outline" className="text-xs">
+                                📅 {new Date(goal.due_date).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => toggleStar(goal)}>
+                            <Star
+                              className={`h-4 w-4 ${goal.starred ? "text-yellow-500 fill-current" : "text-slate-400"}`}
+                            />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setEditingGoal(goal)
+                              setShowGoalForm(true)
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteGoal(goal.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </TabsContent>

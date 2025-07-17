@@ -68,7 +68,7 @@ export interface WikiEntry {
   status: "draft" | "published" | "archived"
   priority: "low" | "medium" | "high"
   is_public: boolean
-  rating?: number
+  rating?: number | null
   file_url?: string
   related_links: string[]
   created_at: string

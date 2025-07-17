@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS wiki_entries (
   summary TEXT,
   content TEXT,
   tags TEXT[] DEFAULT '{}',
-  category TEXT,
+  category TEXT DEFAULT 'General',
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
   is_public BOOLEAN DEFAULT false,
@@ -17,18 +17,31 @@ CREATE TABLE IF NOT EXISTS wiki_entries (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create index for better performance
+-- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_user_id ON wiki_entries(user_id);
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_status ON wiki_entries(status);
 CREATE INDEX IF NOT EXISTS idx_wiki_entries_category ON wiki_entries(category);
-CREATE INDEX IF NOT EXISTS idx_wiki_entries_tags ON wiki_entries USING GIN(tags);
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_priority ON wiki_entries(priority);
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_is_public ON wiki_entries(is_public);
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_created_at ON wiki_entries(created_at);
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_updated_at ON wiki_entries(updated_at);
 
--- Enable RLS
+-- Create GIN index for full-text search on title, summary, and content
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_search ON wiki_entries 
+USING GIN (to_tsvector('english', title || ' ' || COALESCE(summary, '') || ' ' || COALESCE(content, '')));
+
+-- Create GIN index for tags array
+CREATE INDEX IF NOT EXISTS idx_wiki_entries_tags ON wiki_entries USING GIN (tags);
+
+-- Enable Row Level Security
 ALTER TABLE wiki_entries ENABLE ROW LEVEL SECURITY;
 
--- Create policies
+-- Create RLS policies
 CREATE POLICY "Users can view their own wiki entries" ON wiki_entries
   FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view public wiki entries" ON wiki_entries
+  FOR SELECT USING (is_public = true);
 
 CREATE POLICY "Users can insert their own wiki entries" ON wiki_entries
   FOR INSERT WITH CHECK (auth.uid() = user_id);
@@ -39,7 +52,7 @@ CREATE POLICY "Users can update their own wiki entries" ON wiki_entries
 CREATE POLICY "Users can delete their own wiki entries" ON wiki_entries
   FOR DELETE USING (auth.uid() = user_id);
 
--- Create function to update updated_at timestamp
+-- Create function to automatically update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_wiki_entries_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -48,8 +61,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create trigger
-CREATE TRIGGER update_wiki_entries_updated_at
+-- Create trigger to automatically update updated_at
+CREATE TRIGGER trigger_update_wiki_entries_updated_at
   BEFORE UPDATE ON wiki_entries
   FOR EACH ROW
   EXECUTE FUNCTION update_wiki_entries_updated_at();

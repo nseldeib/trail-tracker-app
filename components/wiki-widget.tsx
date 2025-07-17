@@ -90,6 +90,7 @@ export default function WikiWidget({ userId }: WikiWidgetProps) {
       is_public: false,
       rating: null,
       related_links: [],
+      file_url: null,
     }
 
     try {
@@ -280,7 +281,7 @@ export default function WikiWidget({ userId }: WikiWidgetProps) {
   }, [entries, searchQuery, filterCategory, filterStatus, filterVisibility, filterTag])
 
   const renderStars = (rating: number | null, entryId: string, isEditing: boolean) => {
-    const currentRating = isEditing ? editForms[entryId]?.rating || 0 : rating || 0
+    const currentRating = isEditing ? (editForms[entryId]?.rating ?? 0) : (rating ?? 0)
 
     return (
       <div className="flex items-center gap-1">
@@ -670,16 +671,14 @@ export default function WikiWidget({ userId }: WikiWidgetProps) {
                             />
                           </div>
 
-                          {/* File Upload */}
+                          {/* File URL */}
                           <div>
-                            <Label className="text-sm font-medium">File Upload</Label>
-                            <div className="mt-1">
-                              <Button variant="outline" size="sm">
-                                <Upload className="h-4 w-4 mr-2" />
-                                Upload File
-                              </Button>
-                              {formData.file_url && <span className="ml-2 text-sm text-gray-600">File attached</span>}
-                            </div>
+                            <Label className="text-sm font-medium">File URL (optional)</Label>
+                            <Input
+                              value={formData.file_url || ""}
+                              onChange={(e) => updateFormField(entry.id, "file_url", e.target.value)}
+                              placeholder="https://example.com/file.pdf"
+                            />
                           </div>
                         </div>
                       ) : (

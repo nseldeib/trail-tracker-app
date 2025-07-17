@@ -64,12 +64,12 @@ export interface WikiEntry {
   summary?: string
   content?: string
   tags: string[]
-  category?: string
+  category: string
   status: "draft" | "published" | "archived"
   priority: "low" | "medium" | "high"
   is_public: boolean
   rating?: number | null
-  file_url?: string
+  file_url?: string | null
   related_links: string[]
   created_at: string
   updated_at: string

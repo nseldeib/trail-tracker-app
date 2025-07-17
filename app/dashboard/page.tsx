@@ -10,7 +10,6 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import type { User } from "@supabase/supabase-js"
 import DailyCheckinSimple from "@/components/daily-checkin-simple"
-import WikiWidget from "@/components/wiki-widget"
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -195,11 +194,6 @@ export default function DashboardPage() {
         {/* Daily Check-in */}
         <div className="mb-8">
           <DailyCheckinSimple userId={user.id} />
-        </div>
-
-        {/* Personal Wiki */}
-        <div className="mb-8">
-          <WikiWidget userId={user.id} />
         </div>
 
         {/* Quick Actions */}

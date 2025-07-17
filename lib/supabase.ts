@@ -57,52 +57,6 @@ export interface DailyCheckin {
   updated_at: string
 }
 
-export interface WikiEntry {
-  id: string
-  user_id: string
-  title: string
-  summary?: string
-  content?: string
-  tags: string[]
-  category?: string
-  status: "draft" | "published" | "archived"
-  priority: "low" | "medium" | "high"
-  is_public: boolean
-  rating?: number | null
-  file_url?: string
-  related_links: string[]
-  created_at: string
-  updated_at: string
-}
-
-// Wiki categories
-export const WIKI_CATEGORIES = [
-  "General",
-  "Fitness",
-  "Nutrition",
-  "Training",
-  "Goals",
-  "Research",
-  "Personal",
-  "Technical",
-  "Ideas",
-  "Resources",
-]
-
-// Wiki status options
-export const WIKI_STATUS_OPTIONS = [
-  { value: "draft", label: "📝 Draft", color: "bg-gray-100 text-gray-800" },
-  { value: "published", label: "✅ Published", color: "bg-green-100 text-green-800" },
-  { value: "archived", label: "📦 Archived", color: "bg-yellow-100 text-yellow-800" },
-]
-
-// Wiki priority options
-export const WIKI_PRIORITY_OPTIONS = [
-  { value: "low", label: "🔵 Low", color: "bg-blue-100 text-blue-800" },
-  { value: "medium", label: "🟡 Medium", color: "bg-yellow-100 text-yellow-800" },
-  { value: "high", label: "🔴 High", color: "bg-red-100 text-red-800" },
-]
-
 // Emotion/condition options for daily check-ins
 export const EMOTION_OPTIONS = [
   { value: "energized", label: "⚡ Energized", color: "bg-yellow-100 text-yellow-800" },
